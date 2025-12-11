@@ -1,0 +1,51 @@
+services:
+  # Backend API Service
+  - type: web
+    name: job-scheduler-backend
+    env: node
+    plan: starter
+    buildCommand: cd backend && npm ci && npm run build
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DB_HOST
+        fromDatabase:
+          name: job-scheduler-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: job-scheduler-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: job-scheduler-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: job-scheduler-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: job-scheduler-db
+          property: password
+      - key: FRONTEND_URL
+        sync: false  # Set this manually to your Vercel frontend URL
+      - key: OUTBOUND_WEBHOOK
+        sync: false  # Set this manually
+      - key: WEBHOOK_SECRET
+        generateValue: true
+      - key: RATE_LIMIT_WINDOW_MINUTES
+        value: 1
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 30
+
+databases:
+  # MySQL Database
+  - name: job-scheduler-db
+    databaseName: jobsdb
+    user: jobsuser
+    plan: starter  # Free tier available
+
