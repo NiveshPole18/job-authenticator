@@ -72,7 +72,7 @@ io.on("connection", (socket) => {
 })
 
 // Database sync and server start
-const PORT = process.env.PORT || 5000
+const PORT = Number(process.env.PORT) || 5000
 
 // Start server immediately (Render needs port binding ASAP)
 httpServer.listen(PORT, "0.0.0.0", () => {
