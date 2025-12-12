@@ -3,12 +3,18 @@ import dotenv from "dotenv"
 
 dotenv.config()
 
+// Detect dialect: default mysql, but switch to postgres if DATABASE_URL starts with postgres or DB_DIALECT=postgres
+const isPostgres =
+  (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith("postgres://")) ||
+  process.env.DB_DIALECT === "postgres"
+const dialect = (isPostgres ? "postgres" : "mysql") as const
+
 // Support both DATABASE_URL (Render format) and individual variables
 let sequelize: Sequelize
 
 // Configure Sequelize with lazy connection (doesn't connect until first query)
 const sequelizeConfig = {
-  dialect: "mysql" as const,
+  dialect,
   logging: process.env.NODE_ENV === "development" ? console.log : false,
   dialectOptions: {
     connectTimeout: 30000, // 30 seconds (reduced from 60 for faster failure)
@@ -50,7 +56,7 @@ const sequelizeConfig = {
 }
 
 if (process.env.DATABASE_URL) {
-  // Render provides DATABASE_URL format: mysql://user:password@host:port/database
+  // Render provides DATABASE_URL format: mysql://... or postgres://...
   // Parse and use DATABASE_URL
   sequelize = new Sequelize(process.env.DATABASE_URL, sequelizeConfig)
 } else {
@@ -62,7 +68,7 @@ if (process.env.DATABASE_URL) {
     {
       ...sequelizeConfig,
       host: process.env.DB_HOST || "localhost",
-      port: Number.parseInt(process.env.DB_PORT || "3306"),
+      port: Number.parseInt(process.env.DB_PORT || (isPostgres ? "5432" : "3306")),
     },
   )
 }
