@@ -41,8 +41,22 @@ app.use("/api/webhook-test", webhookRoutes)
 app.post("/api/run-job/:id", rateLimiter, runJob)
 
 // Health check
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date() })
+app.get("/health", async (req, res) => {
+  const health = {
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    database: "unknown",
+  }
+  
+  // Check database connection
+  try {
+    await sequelize.authenticate()
+    health.database = "connected"
+  } catch (err: any) {
+    health.database = `disconnected: ${err.message}`
+  }
+  
+  res.json(health)
 })
 
 // Error handler
@@ -60,19 +74,40 @@ io.on("connection", (socket) => {
 // Database sync and server start
 const PORT = process.env.PORT || 5000
 
-sequelize
-  .sync({ alter: false })
-  .then(() => {
-    console.log("✓ Database synchronized")
-    httpServer.listen(PORT, () => {
-      console.log(`✓ Server running on port ${PORT}`)
-      console.log(`✓ Frontend URL: ${process.env.FRONTEND_URL || "http://localhost:3000"}`)
-    })
-  })
-  .catch((err) => {
-    console.error("✗ Database sync failed:", err)
-    process.exit(1)
-  })
+// Start server immediately (Render needs port binding ASAP)
+httpServer.listen(PORT, "0.0.0.0", () => {
+  console.log(`✓ Server running on port ${PORT}`)
+  console.log(`✓ Listening on 0.0.0.0:${PORT}`)
+  console.log(`✓ Frontend URL: ${process.env.FRONTEND_URL || "http://localhost:3000"}`)
+  console.log(`✓ Database URL configured: ${process.env.DATABASE_URL ? "Yes (DATABASE_URL)" : process.env.DB_HOST ? `Yes (${process.env.DB_HOST}:${process.env.DB_PORT})` : "No - check environment variables"}`)
+  
+  // Connect to database asynchronously (non-blocking)
+  // Server will start even if database fails
+  setTimeout(() => {
+    sequelize
+      .authenticate()
+      .then(() => {
+        console.log("✓ Database connection established")
+        return sequelize.sync({ alter: false })
+      })
+      .then(() => {
+        console.log("✓ Database synchronized")
+      })
+      .catch((err) => {
+        console.error("✗ Database connection/sync failed:", err.message)
+        console.error("Error code:", err.code || err.parent?.code)
+        console.error("Database config:", {
+          hasDatabaseUrl: !!process.env.DATABASE_URL,
+          host: process.env.DB_HOST || "not set",
+          port: process.env.DB_PORT || "not set",
+          database: process.env.DB_NAME || "not set",
+        })
+        console.error("Note: Server is running, but database operations will fail until connection is fixed.")
+        console.error("Fix: Set DATABASE_URL or DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD in Render environment variables")
+        // Don't exit - server continues running
+      })
+  }, 1000) // Small delay to ensure server is fully started
+})
 
 export default app
 export { io }

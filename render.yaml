@@ -3,7 +3,7 @@ services:
   - type: web
     name: job-scheduler-backend
     env: node
-    plan: starter
+    plan: free
     buildCommand: cd backend && npm ci && npm run build
     startCommand: cd backend && npm start
     envVars:
@@ -43,9 +43,11 @@ services:
         value: 30
 
 databases:
-  # MySQL Database
+  # MySQL Database (Free tier)
+  # Note: You can also use PostgreSQL (more reliable on free tier)
+  # To use PostgreSQL, change this to type: postgresql
   - name: job-scheduler-db
     databaseName: jobsdb
     user: jobsuser
-    plan: starter  # Free tier available
+    plan: free
 
